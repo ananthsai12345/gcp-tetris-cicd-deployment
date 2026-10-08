@@ -1,50 +1,67 @@
 # 🎮 Tetris — GCP CI/CD Deployment
 
-A containerized HTML5 Tetris application deployed on **Google Cloud Platform** using an automated **CI/CD pipeline**.
+A containerized HTML5 Tetris application deployed on **Google Cloud Platform (GCP)** using an automated **CI/CD pipeline**.
 
 The project demonstrates how a code change pushed to GitHub can automatically trigger a pipeline that builds a Docker image, stores it in Artifact Registry, and deploys the updated application to Cloud Run.
+
+---
+
+## 🌐 Live Demo
+
+**Play the deployed Tetris application:**
+
+https://gaming-tetris-602589641033.us-central1.run.app
 
 ---
 
 ## 🏗️ Architecture
 
 ```text
-                    Developer
-                        │
-                        │ git push
-                        ▼
-                 ┌──────────────┐
-                 │    GitHub    │
-                 └──────┬───────┘
-                        │
-                        │ Push to main
-                        ▼
-              ┌─────────────────────┐
-              │   Cloud Build       │
-              │                     │
-              │  1. Docker Build   │
-              │  2. Push Image     │
-              │  3. Deploy         │
-              └─────────┬───────────┘
-                        │
-                        ▼
-             ┌──────────────────────┐
-             │  Artifact Registry   │
-             │                      │
-             │   Docker Image       │
-             └──────────┬───────────┘
-                        │
-                        │ Container Image
-                        ▼
-                 ┌──────────────┐
-                 │  Cloud Run   │
-                 │              │
-                 │ gaming-tetris│
-                 └──────┬───────┘
-                        │
-                        ▼
-                 🌐 Live Website
-                   Tetris Game
+                     Developer
+                         │
+                         │ git push
+                         ▼
+                  ┌──────────────┐
+                  │    GitHub    │
+                  │              │
+                  │ main branch  │
+                  └──────┬───────┘
+                         │
+                         │ Push event
+                         ▼
+              ┌──────────────────────┐
+              │   Cloud Build        │
+              │   Trigger            │
+              │   gcp-tetris-cicd    │
+              └──────────┬───────────┘
+                         │
+                         ▼
+              ┌──────────────────────┐
+              │   Cloud Build        │
+              │                      │
+              │  1. Docker Build     │
+              │  2. Push Image       │
+              │  3. Deploy           │
+              └──────────┬───────────┘
+                         │
+                         ▼
+              ┌──────────────────────┐
+              │  Artifact Registry   │
+              │                      │
+              │  gaming-repo/tetris │
+              └──────────┬───────────┘
+                         │
+                         │ Container Image
+                         ▼
+                  ┌──────────────┐
+                  │  Cloud Run   │
+                  │              │
+                  │ gaming-tetris│
+                  └──────┬───────┘
+                         │
+                         ▼
+                  🌐 Live Website
+                    Tetris Game
 ```
 
 ---
@@ -57,7 +74,7 @@ The main objective is to demonstrate a practical DevOps workflow:
 
 **Code → GitHub → Cloud Build → Docker → Artifact Registry → Cloud Run**
 
-The deployment is fully automated. After a change is pushed to the `main` branch, Cloud Build automatically builds and deploys the updated application.
+The deployment is automated. After a change is pushed to the `main` branch, the Cloud Build trigger automatically starts the CI/CD pipeline.
 
 ---
 
@@ -67,13 +84,14 @@ The deployment is fully automated. After a change is pushed to the `main` branch
 |---|---|
 | Git | Version control |
 | GitHub | Source code repository |
-| Docker | Containerization |
+| Docker | Application containerization |
 | Nginx | Web server for the static application |
-| Google Cloud Build | CI/CD pipeline |
+| Google Cloud Build | CI/CD pipeline execution |
 | Cloud Build Triggers | Automatic pipeline execution |
 | Artifact Registry | Docker image storage |
 | Cloud Run | Container deployment |
 | IAM | Identity and access management |
+| Cloud Logging | Build log management |
 
 ---
 
@@ -81,11 +99,11 @@ The deployment is fully automated. After a change is pushed to the `main` branch
 
 ### 1. Developer changes the application
 
-Application code is modified locally.
+Application code is modified and committed to the Git repository.
 
 ### 2. Push to GitHub
 
-The changes are committed and pushed to the `main` branch.
+The changes are pushed to the `main` branch.
 
 ```bash
 git add .
@@ -95,13 +113,13 @@ git push origin main
 
 ### 3. Cloud Build Trigger
 
-A Google Cloud Build trigger monitors the GitHub repository.
+The **`gcp-tetris-cicd`** Cloud Build trigger monitors the GitHub repository.
 
-When a push occurs on the `main` branch, the trigger automatically starts a build.
+When a push occurs on the `main` branch, the trigger automatically starts a Cloud Build.
 
 ### 4. Docker Image Build
 
-Cloud Build reads the project's `Dockerfile` and creates a container image.
+Cloud Build reads the project's `Dockerfile` and creates a Docker container image.
 
 ```dockerfile
 FROM nginx
@@ -109,14 +127,14 @@ FROM nginx
 COPY . /usr/share/nginx/html/
 ```
 
-Nginx serves the HTML, JavaScript, audio and other static application files.
+Nginx serves the HTML, JavaScript, audio, and other static application files.
 
 ### 5. Push to Artifact Registry
 
-The newly built Docker image is pushed to:
+The newly built Docker image is pushed to Google Artifact Registry.
 
 ```text
-us-central1-docker.pkg.dev/<PROJECT_ID>/gaming-repo/tetris
+us-central1-docker.pkg.dev/<PROJECT_ID>/gaming-repo/tetris:latest
 ```
 
 Artifact Registry provides managed storage for the container image.
@@ -129,11 +147,11 @@ Cloud Build deploys the container image to the Cloud Run service:
 gaming-tetris
 ```
 
-Cloud Run creates a new revision and routes traffic to the latest successful deployment.
+Cloud Run creates a new revision from the deployed container image and routes traffic to the new revision.
 
 ### 7. Application becomes available
 
-The updated Tetris application is automatically available through the Cloud Run URL.
+The updated Tetris application becomes available through the Cloud Run URL.
 
 ---
 
@@ -153,7 +171,7 @@ The application files are copied into Nginx's default web directory:
 /usr/share/nginx/html/
 ```
 
-Nginx listens on port `80`, so Cloud Run is configured to expose the container on port `80`.
+Nginx listens on port `80`, so Cloud Run is configured to use container port `80`.
 
 ---
 
@@ -177,20 +195,38 @@ The pipeline performs three main operations:
 
 The pipeline also uses Cloud Logging for build logs.
 
+### Pipeline Configuration
+
+The Docker image is built and pushed using:
+
+```text
+us-central1-docker.pkg.dev/$PROJECT_ID/gaming-repo/tetris:latest
+```
+
+The Cloud Run service deployed by the pipeline is:
+
+```text
+gaming-tetris
+```
+
 ---
 
 ## 🔐 IAM and Service Account
 
-A dedicated Google Cloud service account is used by Cloud Build.
+A dedicated Google Cloud service account is used by Cloud Build:
 
-The service account provides the permissions required for the CI/CD pipeline to:
+```text
+gaming-cloud-build@<PROJECT_ID>.iam.gserviceaccount.com
+```
+
+The service account provides the permissions required by the CI/CD pipeline to:
 
 - Push container images to Artifact Registry
 - Deploy the application to Cloud Run
 - Write build logs
-- Act as the required deployment identity
+- Perform deployment actions using the required service identity
 
-This demonstrates the use of **IAM-based machine identities** rather than relying on a personal user account for automated deployment.
+This demonstrates the use of **IAM-based machine identities** for automated cloud deployments instead of relying on a personal user account.
 
 ---
 
@@ -201,17 +237,15 @@ gcp-tetris-cicd-deployment/
 │
 ├── audio/
 ├── chart/
+├── screenshots/
 ├── cloudbuild.yaml
 ├── Dockerfile
 ├── index.html
 ├── tetris.js
 ├── package.json
 ├── CHANGELOG.md
-├── Jenkinsfile
 └── README.md
 ```
-
-> **Note:** The `Jenkinsfile` is retained from the original application repository. It is not used by the current GCP CI/CD pipeline.
 
 ---
 
@@ -241,17 +275,13 @@ gcp-tetris-cicd-deployment/
 
 ## 🧪 Automated Deployment Demonstration
 
-The CI/CD pipeline was tested by modifying the application's page title.
+The CI/CD pipeline was tested by modifying the application and pushing the change to the GitHub repository.
 
-The change was committed and pushed to GitHub:
+The change was committed to the `main` branch.
 
-```text
-Update game title
-```
+The GitHub push automatically triggered Cloud Build through the `gcp-tetris-cicd` trigger.
 
-The GitHub push automatically triggered Cloud Build.
-
-Cloud Build then:
+Cloud Build then executed the following workflow:
 
 ```text
 GitHub Commit
@@ -260,14 +290,16 @@ Cloud Build Trigger
       ↓
 Docker Build
       ↓
-Artifact Registry
+Push to Artifact Registry
       ↓
-Cloud Run Deployment
+Deploy to Cloud Run
       ↓
 New Cloud Run Revision
+      ↓
+Updated Live Application
 ```
 
-No manual Cloud Build execution or manual Cloud Run deployment was required for the final deployment test.
+The final automated deployment test completed successfully without manually starting the Cloud Build or manually deploying the Cloud Run service.
 
 ---
 
@@ -275,7 +307,7 @@ No manual Cloud Build execution or manual Cloud Run deployment was required for 
 
 ### Cloud Run Container Port
 
-The initial Cloud Run deployment failed because the container was listening on port `80`, while Cloud Run was configured to expect port `8080`.
+The initial Cloud Run deployment failed because the Nginx container listens on port `80`, while Cloud Run was initially configured to expect port `8080`.
 
 The issue was resolved by configuring Cloud Run to use:
 
@@ -291,7 +323,13 @@ This matched the default Nginx configuration used by the container.
 
 A dedicated service account was configured for the CI/CD pipeline.
 
-The required IAM permissions were assigned so that Cloud Build could interact with Artifact Registry, Cloud Run and Cloud Logging.
+The required IAM permissions were assigned so that Cloud Build could interact with:
+
+- Artifact Registry
+- Cloud Run
+- Cloud Logging
+
+This separates automated deployment permissions from the personal user account.
 
 ---
 
@@ -299,12 +337,14 @@ The required IAM permissions were assigned so that Cloud Build could interact wi
 
 Because a user-managed service account was used, Cloud Build required an explicit logging configuration.
 
-The pipeline was configured to use:
+The pipeline was configured with:
 
 ```yaml
 options:
   logging: CLOUD_LOGGING_ONLY
 ```
+
+This allowed Cloud Build to use Cloud Logging while using the dedicated service account.
 
 ---
 
@@ -318,7 +358,7 @@ This project demonstrates practical understanding of:
 - Docker containerization
 - Docker image management
 - Artifact Registry
-- Cloud Build
+- Google Cloud Build
 - Cloud Build Triggers
 - Cloud Run
 - IAM
@@ -327,6 +367,7 @@ This project demonstrates practical understanding of:
 - Container ports
 - Cloud Run revisions
 - Automated deployments
+- GitHub-based deployment workflows
 
 ---
 
@@ -348,22 +389,24 @@ Possible improvements for a larger production-oriented implementation:
 
 ## 🎯 Learning Outcome
 
-This project helped demonstrate the complete lifecycle of a containerized application:
+This project demonstrates the complete lifecycle of a containerized application:
 
 ```text
 Source Code
-    ↓
+     ↓
 Version Control
-    ↓
+     ↓
 CI/CD Automation
-    ↓
-Container Build
-    ↓
+     ↓
+Docker Container Build
+     ↓
 Container Registry
-    ↓
+     ↓
 Cloud Deployment
-    ↓
+     ↓
+Cloud Run Revision
+     ↓
 Live Application
 ```
 
-GCP CI/CD pipeline verified.
+The project provided hands-on experience with **Docker, GitHub, Google Cloud Build, Artifact Registry, Cloud Run, IAM, service accounts, and automated CI/CD deployment**.
