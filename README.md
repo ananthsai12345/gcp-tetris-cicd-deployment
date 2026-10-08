@@ -366,4 +366,4 @@ Cloud Deployment
 Live Application
 ```
 
-It provides a practical foundation for building more advanced DevOps projects involving Kubernetes, Terraform, Jenkins, monitoring and infrastructure automation.
+GCP CI/CD pipeline verified.
